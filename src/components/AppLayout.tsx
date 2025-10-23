@@ -27,6 +27,7 @@ import {
   Logout,
 } from "@mui/icons-material";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const drawerWidth = 280;
 
@@ -35,6 +36,7 @@ const AppLayout = () => {
   const location = useLocation();
   const [userEmail, setUserEmail] = useState("");
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const { role } = useUserRole();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -71,12 +73,16 @@ const AppLayout = () => {
   };
 
   const menuItems = [
-    { text: "Dashboard", icon: <Dashboard />, path: "/dashboard" },
-    { text: "My Skills", icon: <Psychology />, path: "/my-skills" },
-    { text: "My Team", icon: <Group />, path: "/team" },
-    { text: "Hiring", icon: <Work />, path: "/hiring" },
-    { text: "Mobility", icon: <TrendingUp />, path: "/mobility" },
+    { text: "Dashboard", icon: <Dashboard />, path: "/dashboard", roles: ['employee', 'manager', 'hr', 'executive'] },
+    { text: "My Skills", icon: <Psychology />, path: "/my-skills", roles: ['employee', 'manager', 'hr', 'executive'] },
+    { text: "My Team", icon: <Group />, path: "/team", roles: ['manager', 'hr', 'executive'] },
+    { text: "Hiring", icon: <Work />, path: "/hiring", roles: ['manager', 'hr', 'executive'] },
+    { text: "Mobility", icon: <TrendingUp />, path: "/mobility", roles: ['employee', 'manager', 'hr', 'executive'] },
   ];
+
+  const visibleMenuItems = menuItems.filter(item => 
+    !role || item.roles.includes(role)
+  );
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
@@ -136,7 +142,7 @@ const AppLayout = () => {
         <Toolbar />
         <Box sx={{ overflow: "auto", mt: 2 }}>
           <List>
-            {menuItems.map((item) => (
+            {visibleMenuItems.map((item) => (
               <ListItem key={item.text} disablePadding>
                 <ListItemButton
                   selected={location.pathname === item.path}

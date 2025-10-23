@@ -9,6 +9,9 @@ import Login from "./pages/Login";
 import AppLayout from "./components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import MySkills from "./pages/MySkills";
+import Team from "./pages/Team";
+import Hiring from "./pages/Hiring";
+import Mobility from "./pages/Mobility";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,9 +43,9 @@ const App = () => (
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/my-skills" element={<MySkills />} />
-              <Route path="/team" element={<Dashboard />} />
-              <Route path="/hiring" element={<Dashboard />} />
-              <Route path="/mobility" element={<Dashboard />} />
+              <Route path="/team" element={<Team />} />
+              <Route path="/hiring" element={<Hiring />} />
+              <Route path="/mobility" element={<Mobility />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
