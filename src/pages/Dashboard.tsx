@@ -8,6 +8,7 @@ import {
 } from "@mui/material";
 import { People, Work, TrendingUp, Assignment } from "@mui/icons-material";
 import { supabase } from "@/integrations/supabase/client";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 interface Stats {
   totalEmployees: number;
@@ -104,6 +105,8 @@ const Dashboard = () => {
       <Typography variant="body1" color="text.secondary" mb={4}>
         Welcome to your strategic workforce platform
       </Typography>
+
+      <RoleSwitcher />
 
       <Box
         sx={{
