@@ -29,16 +29,11 @@ export default function RoleSwitcher() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Delete existing role
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', user.id);
-
-      // Insert new role
+      // Update existing role (avoid RLS restrictions on insert)
       const { error } = await supabase
         .from('user_roles')
-        .insert({ user_id: user.id, role: newRole });
+        .update({ role: newRole })
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
