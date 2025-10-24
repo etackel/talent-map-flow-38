@@ -29,11 +29,13 @@ export default function RoleSwitcher() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Update existing role (avoid RLS restrictions on insert)
+      // Use upsert to handle both insert and update cases
       const { error } = await supabase
         .from('user_roles')
-        .update({ role: newRole })
-        .eq('user_id', user.id);
+        .upsert(
+          { user_id: user.id, role: newRole },
+          { onConflict: 'user_id' }
+        );
 
       if (error) throw error;
 
