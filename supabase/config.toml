@@ -1,1 +1,4 @@
 project_id = "wjhmjhnbpghaxydsfxid"
+
+[functions.scan-for-internal-hires]
+verify_jwt = false

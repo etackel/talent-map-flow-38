@@ -90,20 +90,44 @@ export default function Hiring() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { data: insertData, error } = await supabase
         .from('process_requisitions')
         .insert({
           manager_id: user.id,
           role_title: roleTitle,
           department,
-          required_skills_json: selectedSkills.map(s => ({ skill_id: s.id, name: s.name })),
+          required_skills_json: selectedSkills.map(s => ({ id: s.id, name: s.name })),
           status: 'PENDING_SCAN',
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      toast({ title: 'Requisition created successfully!' });
-      navigate('/dashboard');
+      // Trigger the internal candidate scanning
+      if (insertData) {
+        supabase.functions.invoke('scan-for-internal-hires', {
+          body: { requisition_id: insertData.id }
+        }).then(({ data, error: fnError }) => {
+          if (fnError) {
+            console.error('Error scanning for internal candidates:', fnError);
+          } else {
+            console.log('Internal candidate scan result:', data);
+          }
+        });
+      }
+
+      toast({ 
+        title: 'Requisition submitted successfully!',
+        description: 'The system is now scanning for internal candidates.'
+      });
+      
+      // Reset form
+      setRoleTitle('');
+      setDepartment('');
+      setSelectedSkills([]);
+      setActiveStep(0);
+      
     } catch (error) {
       console.error('Error creating requisition:', error);
       toast({ 

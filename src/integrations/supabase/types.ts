@@ -277,6 +277,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      find_matching_employees: {
+        Args: { skill_ids_array: number[] }
+        Returns: {
+          department: string
+          email: string
+          employee_id: string
+          full_name: string
+          matched_skills_count: number
+          role_title: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

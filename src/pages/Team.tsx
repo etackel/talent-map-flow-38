@@ -13,7 +13,13 @@ import {
   Chip,
   CircularProgress,
   Alert,
+  IconButton,
+  Collapse,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material';
+import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 
@@ -32,6 +38,19 @@ export default function Team() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const toggleRow = (id: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     async function fetchTeam() {
@@ -120,42 +139,67 @@ export default function Team() {
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell sx={{ fontWeight: 600, width: 50 }} />
                     <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Role</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Department</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Utilization</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Skills</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {team.map((member) => (
-                    <TableRow key={member.id} hover>
-                      <TableCell>{member.full_name}</TableCell>
-                      <TableCell>{member.email}</TableCell>
-                      <TableCell>{member.role_title || '-'}</TableCell>
-                      <TableCell>{member.department || '-'}</TableCell>
-                      <TableCell>
-                        {member.utilization_percent ? `${member.utilization_percent}%` : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                          {member.skills.length === 0 ? (
-                            <Typography variant="body2" color="text.secondary">No skills</Typography>
-                          ) : (
-                            member.skills.map((skill, idx) => (
-                              <Chip
-                                key={idx}
-                                label={`${skill.name} (${skill.proficiency_level})`}
-                                size="small"
-                                color="primary"
-                                variant="outlined"
-                              />
-                            ))
-                          )}
-                        </Box>
-                      </TableCell>
-                    </TableRow>
+                    <>
+                      <TableRow key={member.id} hover>
+                        <TableCell>
+                          <IconButton
+                            size="small"
+                            onClick={() => toggleRow(member.id)}
+                          >
+                            {expandedRows.has(member.id) ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+                          </IconButton>
+                        </TableCell>
+                        <TableCell>{member.full_name}</TableCell>
+                        <TableCell>{member.email}</TableCell>
+                        <TableCell>{member.role_title || '-'}</TableCell>
+                        <TableCell>{member.department || '-'}</TableCell>
+                        <TableCell>
+                          {member.utilization_percent ? `${member.utilization_percent}%` : '-'}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
+                          <Collapse in={expandedRows.has(member.id)} timeout="auto" unmountOnExit>
+                            <Box sx={{ margin: 2 }}>
+                              <Typography variant="h6" gutterBottom component="div">
+                                Skills
+                              </Typography>
+                              {member.skills.length === 0 ? (
+                                <Alert severity="info">No skills added yet</Alert>
+                              ) : (
+                                <List>
+                                  {member.skills.map((skill, idx) => (
+                                    <ListItem key={idx}>
+                                      <Chip
+                                        label={skill.category}
+                                        size="small"
+                                        color="secondary"
+                                        variant="outlined"
+                                        sx={{ mr: 2 }}
+                                      />
+                                      <ListItemText
+                                        primary={skill.name}
+                                        secondary={`Proficiency Level: ${skill.proficiency_level}/5`}
+                                      />
+                                    </ListItem>
+                                  ))}
+                                </List>
+                              )}
+                            </Box>
+                          </Collapse>
+                        </TableCell>
+                      </TableRow>
+                    </>
                   ))}
                 </TableBody>
               </Table>
