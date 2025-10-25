@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import { AuthProvider } from "./contexts/AuthContext";
 import Login from "./pages/Login";
 import AppLayout from "./components/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -35,22 +36,24 @@ const App = () => (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Login />} />
-            <Route element={<AppLayout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/my-skills" element={<MySkills />} />
-              <Route path="/team" element={<Team />} />
-              <Route path="/hiring" element={<Hiring />} />
-              <Route path="/mobility" element={<Mobility />} />
-            </Route>
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Login />} />
+              <Route element={<AppLayout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/my-skills" element={<MySkills />} />
+                <Route path="/team" element={<Team />} />
+                <Route path="/hiring" element={<Hiring />} />
+                <Route path="/mobility" element={<Mobility />} />
+              </Route>
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
