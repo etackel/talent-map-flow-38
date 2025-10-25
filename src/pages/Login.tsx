@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { z } from "zod";
 import {
   Box,
   Card,
@@ -11,6 +12,16 @@ import {
   Stack,
 } from "@mui/material";
 import { supabase } from "@/integrations/supabase/client";
+
+// Input validation schema
+const loginSchema = z.object({
+  email: z.string().trim().email({ message: "Invalid email address" }).max(255),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100),
+});
+
+const signUpSchema = loginSchema.extend({
+  fullName: z.string().trim().min(1, { message: "Full name is required" }).max(100),
+});
 
 const Login = () => {
   const navigate = useNavigate();
@@ -27,15 +38,30 @@ const Login = () => {
     setLoading(true);
 
     try {
+      // Validate inputs
+      const schema = isSignUp ? signUpSchema : loginSchema;
+      const validationResult = schema.safeParse({
+        email: email.trim(),
+        password,
+        ...(isSignUp && { fullName: fullName.trim() }),
+      });
+
+      if (!validationResult.success) {
+        const firstError = validationResult.error.errors[0];
+        setError(firstError.message);
+        setLoading(false);
+        return;
+      }
+
       if (isSignUp) {
         const { error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
             data: {
-              full_name: fullName,
+              full_name: fullName.trim(),
             },
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: `${window.location.origin}/dashboard`,
           },
         });
 
@@ -43,15 +69,16 @@ const Login = () => {
         
         // Auto-login after signup
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         });
 
         if (signInError) throw signInError;
         navigate("/dashboard");
       } else {
+        // Login flow
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         });
 
@@ -59,7 +86,7 @@ const Login = () => {
         navigate("/dashboard");
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred");
+      setError(err.message || "An error occurred during authentication");
     } finally {
       setLoading(false);
     }
@@ -72,7 +99,7 @@ const Login = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: "hsl(var(--background))",
+        bgcolor: "background.default",
         padding: 2,
       }}
     >
@@ -103,6 +130,7 @@ const Login = () => {
                   onChange={(e) => setFullName(e.target.value)}
                   required
                   disabled={loading}
+                  inputProps={{ maxLength: 100 }}
                 />
               )}
 
@@ -114,6 +142,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
+                inputProps={{ maxLength: 255 }}
               />
 
               <TextField
@@ -124,6 +153,7 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
+                inputProps={{ maxLength: 100 }}
               />
 
               <Button
