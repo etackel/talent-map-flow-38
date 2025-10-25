@@ -25,6 +25,7 @@ import {
 } from "@mui/material";
 import { Add, Delete } from "@mui/icons-material";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Skill {
   id: number;
@@ -40,6 +41,7 @@ interface EmployeeSkill {
 }
 
 const MySkills = () => {
+  const { user } = useAuth();
   const [employeeSkills, setEmployeeSkills] = useState<EmployeeSkill[]>([]);
   const [allSkills, setAllSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,17 +52,15 @@ const MySkills = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
   const fetchData = async () => {
+    if (!user) return;
+
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) return;
-
       // Fetch user's skills
       const { data: skillsData, error: skillsError } = await supabase
         .from("employee_skills")
@@ -98,18 +98,12 @@ const MySkills = () => {
   };
 
   const handleAddSkill = async () => {
-    if (!selectedSkill) return;
+    if (!selectedSkill || !user) return;
 
     setSubmitting(true);
     setError("");
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) throw new Error("Not authenticated");
-
       const { error: insertError } = await supabase.from("employee_skills").insert({
         employee_id: user.id,
         skill_id: selectedSkill.id,
