@@ -15,9 +15,7 @@ import {
   Chip,
 } from '@mui/material';
 import { supabase } from '@/integrations/supabase/client';
-import { useUserRole } from '@/hooks/useUserRole';
-import { useNavigate } from 'react-router-dom';
-import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Skill {
   id: number;
@@ -28,11 +26,13 @@ interface Skill {
 const steps = ['Role Details', 'Required Skills', 'Review & Submit'];
 
 export default function Hiring() {
-  const { role, loading: roleLoading } = useUserRole();
-  const navigate = useNavigate();
+  const { user, role } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   
   // Form state
   const [roleTitle, setRoleTitle] = useState('');
@@ -40,19 +40,43 @@ export default function Hiring() {
   const [selectedSkills, setSelectedSkills] = useState<Skill[]>([]);
 
   useEffect(() => {
-    async function fetchSkills() {
-      const { data } = await supabase
-        .from('skills')
-        .select('*')
-        .order('name');
-      
-      if (data) setSkills(data);
+    async function fetchData() {
+      if (!user) return;
+
+      try {
+        // Fetch manager's department from employees table
+        const { data: employeeData, error: employeeError } = await supabase
+          .from('employees')
+          .select('department')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (employeeError) throw employeeError;
+        if (employeeData?.department) {
+          setDepartment(employeeData.department);
+        }
+
+        // Fetch all skills
+        const { data: skillsData, error: skillsError } = await supabase
+          .from('skills')
+          .select('*')
+          .order('category', { ascending: true })
+          .order('name', { ascending: true });
+
+        if (skillsError) throw skillsError;
+        setSkills(skillsData || []);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load data');
+      } finally {
+        setLoading(false);
+      }
     }
 
-    fetchSkills();
-  }, []);
+    fetchData();
+  }, [user]);
 
-  if (roleLoading) {
+  if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
         <CircularProgress />
@@ -63,20 +87,21 @@ export default function Hiring() {
   if (role !== 'manager' && role !== 'hr' && role !== 'executive') {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error">Access denied. This page is only available to managers and HR.</Alert>
+        <Alert severity="error">Access denied. This page is only available to managers.</Alert>
       </Box>
     );
   }
 
   const handleNext = () => {
-    if (activeStep === 0 && (!roleTitle || !department)) {
-      toast({ title: 'Please fill in all fields', variant: 'destructive' });
+    if (activeStep === 0 && !roleTitle.trim()) {
+      setError('Role title is required');
       return;
     }
     if (activeStep === 1 && selectedSkills.length === 0) {
-      toast({ title: 'Please select at least one skill', variant: 'destructive' });
+      setError('Please select at least one skill');
       return;
     }
+    setError(null);
     setActiveStep((prev) => prev + 1);
   };
 
@@ -85,58 +110,43 @@ export default function Hiring() {
   };
 
   const handleSubmit = async () => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+    if (!user) return;
 
-      const { data: insertData, error } = await supabase
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      // Prepare the required_skills_json with full skill objects
+      const requiredSkillsJson = selectedSkills.map(skill => ({
+        id: skill.id,
+        name: skill.name,
+        category: skill.category,
+      }));
+
+      const { error: insertError } = await supabase
         .from('process_requisitions')
         .insert({
           manager_id: user.id,
           role_title: roleTitle,
-          department,
-          required_skills_json: selectedSkills.map(s => ({ id: s.id, name: s.name })),
+          department: department || null,
           status: 'PENDING_SCAN',
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Trigger the internal candidate scanning
-      if (insertData) {
-        supabase.functions.invoke('scan-for-internal-hires', {
-          body: { requisition_id: insertData.id }
-        }).then(({ data, error: fnError }) => {
-          if (fnError) {
-            console.error('Error scanning for internal candidates:', fnError);
-          } else {
-            console.log('Internal candidate scan result:', data);
-          }
+          required_skills_json: requiredSkillsJson,
         });
-      }
 
-      toast({ 
-        title: 'Requisition submitted successfully!',
-        description: 'The system is now scanning for internal candidates.'
-      });
+      if (insertError) throw insertError;
+
+      setSuccessMessage('Requisition submitted! The system is now scanning for internal candidates.');
       
       // Reset form
       setRoleTitle('');
-      setDepartment('');
       setSelectedSkills([]);
       setActiveStep(0);
       
-    } catch (error) {
-      console.error('Error creating requisition:', error);
-      toast({ 
-        title: 'Failed to create requisition',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      });
+    } catch (err) {
+      console.error('Error submitting requisition:', err);
+      setError(err instanceof Error ? err.message : 'Failed to submit requisition');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -215,8 +225,20 @@ export default function Hiring() {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
-        Create Hiring Requisition
+        New Hiring Requisition
       </Typography>
+
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage(null)}>
+          {successMessage}
+        </Alert>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
       <Card>
         <CardContent>
@@ -240,9 +262,9 @@ export default function Hiring() {
             <Button
               variant="contained"
               onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-              disabled={loading}
+              disabled={submitting}
             >
-              {loading ? (
+              {submitting ? (
                 <CircularProgress size={24} />
               ) : activeStep === steps.length - 1 ? (
                 'Submit'
