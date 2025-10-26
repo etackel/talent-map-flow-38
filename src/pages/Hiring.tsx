@@ -135,6 +135,30 @@ export default function Hiring() {
 
       if (insertError) throw insertError;
 
+      // Get the inserted requisition ID
+      const { data: insertedRequisition, error: fetchError } = await supabase
+        .from('process_requisitions')
+        .select('id')
+        .eq('manager_id', user.id)
+        .eq('role_title', roleTitle)
+        .eq('status', 'PENDING_SCAN')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Trigger the edge function to scan for internal candidates
+      const { error: functionError } = await supabase.functions.invoke('scan-for-internal-hires', {
+        body: { requisition_id: insertedRequisition.id }
+      });
+
+      if (functionError) {
+        console.error('Error invoking scan function:', functionError);
+        setError('Requisition created but failed to start scanning. Please contact support.');
+        return;
+      }
+
       setSuccessMessage('Requisition submitted! The system is now scanning for internal candidates.');
       
       // Reset form
