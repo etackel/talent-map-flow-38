@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { supabase } from '@/integrations/supabase/client';
-import { useUserRole } from '@/hooks/useUserRole';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TeamMember {
   id: string;
@@ -34,7 +34,7 @@ interface TeamMember {
 }
 
 export default function Team() {
-  const { role, loading: roleLoading } = useUserRole();
+  const { user, role, loading: authLoading } = useAuth();
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +54,7 @@ export default function Team() {
 
   useEffect(() => {
     async function fetchTeam() {
-      if (roleLoading) return;
+      if (authLoading) return;
       
       if (role !== 'manager' && role !== 'hr' && role !== 'executive') {
         setError('Access denied. This page is only available to managers and HR.');
@@ -62,9 +62,13 @@ export default function Team() {
         return;
       }
 
+      if (!user) {
+        setError('Not authenticated');
+        setLoading(false);
+        return;
+      }
+
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
 
         // Fetch team members
         const { data: employeeData, error: employeeError } = await supabase
@@ -106,9 +110,9 @@ export default function Team() {
     }
 
     fetchTeam();
-  }, [role, roleLoading]);
+  }, [user, role, authLoading]);
 
-  if (roleLoading || loading) {
+  if (authLoading || loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
         <CircularProgress />
